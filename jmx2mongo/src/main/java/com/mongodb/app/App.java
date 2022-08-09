@@ -30,7 +30,7 @@ public class App {
     List<String> options = null;
 
     String ServiceURL="service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi";
-    String MongoDBCXN = "mongodb+srv://sparkuser:sparkpassword123@demo.lkyil.mongodb.net/?retryWrites=true&w=majority"; // "mongodb://localhost";
+    String MongoDBCXN = "mongodb://localhost";
     Boolean bWriteToConsole=false;
     String Domain="com.mongodb";
     int iSampleMS=5000;
