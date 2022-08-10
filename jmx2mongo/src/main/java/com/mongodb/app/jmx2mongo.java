@@ -22,20 +22,21 @@ import com.mongodb.client.result.InsertOneResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class App {
+public class jmx2mongo {
 
     public static void main(String[] args) throws Exception{
 
     final Map<String, List<String>> params = new HashMap<>();
     List<String> options = null;
 
+    //Define default values
     String ServiceURL="service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi";
     String MongoDBCXN = "mongodb://localhost";
     Boolean bWriteToConsole=false;
-    String Domain="com.mongodb";
     int iSampleMS=5000;
     String sDatabaseName="jmx2mongo";
     String sCollectionName="metrics_ts";
+    String sObjectName=""; //com.mongodb:name=*,type=MongoDBKafkaConnector"; //java.lang:type=Threading"; //"
 
     try{
         if (args.length>0)
@@ -63,7 +64,7 @@ public class App {
                 }
             }
             if (params.get("h")!=null || params.get("help")!=null) {
-                System.out.println(("\nJmxMongo - Stream JMX events to MongoDB time-series collection\n\n\nOptions:\n\n -service [JMX Service Url]  default: service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi\n -mongo [MongoDB Connection String] default: mongodb://localhost\n -showdomains Lists the JMX domains\n -domain [JMX Domain] default: com.mongodb\n -console Log data to console \n\n"));
+                System.out.println(("\nJmxMongo - Stream JMX events to MongoDB time-series collection\n\n\nOptions:\n\n -service [JMX Service Url]  (default: service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi)\n -objectname [Name of MBean, or a pattern matching the names of many MBeans] (REQUIRED)\n -mongo [MongoDB Connection String] (default: mongodb://localhost)\n -database [Destination database name] (default: jmx2mongo)\n -collection [Destination collection name] (default: metrics_ts)\n -console (Logs metrics to console)\n\n"));
                 System.exit(0);
             }
             if (params.get("console")!=null) {
@@ -73,19 +74,20 @@ public class App {
             
             if (params.get("mongo")!=null) { MongoDBCXN=params.get("mongo").get(0); }
             if (params.get("service")!=null) { ServiceURL=params.get("service").get(0); }
-            if (params.get("domain")!=null) { ServiceURL=params.get("domain").get(0); }
             if (params.get("console")!=null) { bWriteToConsole=true;}
             if (params.get("database")!=null) { sDatabaseName=params.get("database").get(0); }
             if (params.get("collection")!=null) { sCollectionName=params.get("collection").get(0); }
-            
+            if (params.get("objectname")!=null) { sObjectName=params.get("objectname").get(0);}
             
         }
 
+        if (sObjectName.length()==0) { System.out.println("\n\nJMX2MONGO - Missing ObjectName\n\nExample Usage:\n\njava -jar jmx2mongo.jar -objectname \"com.mongodb:name=*,type=MongoDBKafkaConnector\"\n\n"); System.exit(0); }
         System.out.println("\nJMX2MONGO - MBean attribute value copy tool\n\nConnecting to JMX Service URL - " + ServiceURL );
         JMXServiceURL url=new JMXServiceURL(ServiceURL); //"service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi");
         JMXConnector jmxc = JMXConnectorFactory.connect(url,null);
         MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
-
+        System.out.println("\nConnecting to MongoDB - " + MongoDBCXN + "\n\n" );
+      
         //Open MongoDB Connection
        try (MongoClient mongoClient = MongoClients.create(MongoDBCXN)) {
 
@@ -102,12 +104,14 @@ public class App {
             database.createCollection(sCollectionName, collOptions);
         }
         else{
-            System.out.println("\n\"" + sCollectionName + "\" collection exists!");
+            System.out.println("\n\"" + sCollectionName + "\" collection exists!  For best perfomance use a time series collection.");
         }
 
         MongoCollection<Document> collection = database.getCollection(sCollectionName);
 
-        Set<ObjectInstance> objectInstanceNames=mbsc.queryMBeans(new ObjectName("com.mongodb:name=*,type=MongoDBKafkaConnector"),null); 
+        System.out.println("\n\nQuerying " + sObjectName + "\n\n");
+
+        Set<ObjectInstance> objectInstanceNames=mbsc.queryMBeans(new ObjectName(sObjectName),null); 
 
         Date dLastWritten=new Date();
         SimpleDateFormat sdfLastWritten = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -148,11 +152,6 @@ public class App {
         } catch (MongoException me) {
             System.err.println("Unable to insert due to an error: " + me);
         }
-    /*    catch (InterruptedException e) {
-            System.out.println("\n\nStopped execution\n\n");
-            throw new RuntimeException("Thread " +
-                                    "interrupted");
-        }*/
 
         jmxc.close();
      }catch (Exception e){
