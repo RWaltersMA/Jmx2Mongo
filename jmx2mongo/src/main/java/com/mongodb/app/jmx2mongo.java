@@ -36,7 +36,10 @@ public class jmx2mongo {
     int iSampleMS=5000;
     String sDatabaseName="jmx2mongo";
     String sCollectionName="metrics_ts";
-    String sObjectName=""; //com.mongodb:name=*,type=MongoDBKafkaConnector"; //java.lang:type=Threading"; //"
+    String sObjectName=""; 
+
+    //Sample object names
+    sObjectName="com.mongodb.kafka.connect:type=source-task-metrics,task=*";
 
     try{
         if (args.length>0)
@@ -104,14 +107,23 @@ public class jmx2mongo {
             database.createCollection(sCollectionName, collOptions);
         }
         else{
-            System.out.println("\n\"" + sCollectionName + "\" collection exists!  For best perfomance use a time series collection.");
+            System.out.println("\n\"" + sCollectionName + "\" collection exists!  For best perfomanceuse a time series collection.");
         }
 
         MongoCollection<Document> collection = database.getCollection(sCollectionName);
 
         System.out.println("\n\nQuerying " + sObjectName + "\n\n");
 
-        Set<ObjectInstance> objectInstanceNames=mbsc.queryMBeans(new ObjectName(sObjectName),null); 
+       Set<ObjectInstance> objectInstanceNames=mbsc.queryMBeans(new ObjectName(sObjectName),null); 
+       
+       //TEMP
+       System.out.println("\n\nFound the following MBeans:\n");
+       Set<ObjectName> objectIN=mbsc.queryNames(new ObjectName(sObjectName),null);
+       for (ObjectName c : objectIN) {
+        
+        System.out.println(c.getKeyPropertyListString());
+       }
+
 
         Date dLastWritten=new Date();
         SimpleDateFormat sdfLastWritten = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -124,7 +136,9 @@ public class jmx2mongo {
         for (ObjectInstance c : objectInstanceNames) {
         
             ObjectName x = c.getObjectName();
-            String mbean_name=x.getKeyProperty("name");
+       //     System.out.println(x.getKeyPropertyListString());
+            //Future note: May need to tweak this getKeyProperty as the Kafka Connector exposes "type" but not all MBeans use that some use "name"
+            String mbean_name=x.getKeyProperty("type");
             MBeanInfo info= mbsc.getMBeanInfo(x);
             MBeanAttributeInfo[] attribute=info.getAttributes();
             Document new_doc = new Document().append("_id", new ObjectId()).append("sample_time", new Date()).append("mbean", mbean_name);
@@ -133,10 +147,26 @@ public class jmx2mongo {
             if (bWriteToConsole) System.out.println("\n\nMBean = " + mbean_name + "\n\n");
 
             for(MBeanAttributeInfo attr : attribute){
-                if (bWriteToConsole) System.out.println(mbsc.getAttributes(x, new String[]{attr.getName()}));
-                Attribute a= (Attribute)mbsc.getAttributes(x, new String[]{attr.getName()}).get(0);
+                
+                Object attributeValue = mbsc.getAttribute(x, attr.getName()).toString();
+
+                if (attr.isReadable())
+                {
+                    if (bWriteToConsole) System.out.println(attr.getName() + " = " + attributeValue.toString()); //mbsc.getAttributes(x, new String[]{attr.getName()}));
+             
+                    switch(attr.getType()) {
+                        case "long":
+                            new_doc.append(attr.getName(), Long.parseLong(attributeValue.toString()));
+                            break;
+                        case "integer":
+                            new_doc.append(attr.getName(),Integer.parseInt(attributeValue.toString()));
+                            break;
+                        default:
+                            System.out.println("Type of Value = " + attr.getType());
+                            new_doc.append(attr.getName(),attributeValue.toString());
+                    }
             
-                new_doc.append(attr.getName(),a.getValue());
+                 } // isreadable
                 
             }
             InsertOneResult result = collection.insertOne(new_doc);
