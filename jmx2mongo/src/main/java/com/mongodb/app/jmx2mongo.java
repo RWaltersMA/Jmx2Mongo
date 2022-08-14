@@ -39,7 +39,7 @@ public class jmx2mongo {
     String sObjectName=""; 
 
     //Sample object names
-    sObjectName="com.mongodb.kafka.connect:type=source-task-metrics,task=*";
+    //sObjectName="com.mongodb.kafka.connect:type=source-task-metrics,task=*";
 
     try{
         if (args.length>0)
