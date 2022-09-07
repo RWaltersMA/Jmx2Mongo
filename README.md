@@ -22,12 +22,9 @@ OPTIONS
 Write MongoDB Kafka Connector MBeans to a MongoDB Atlas Cluster
 
 ```
-java -jar jmx2mongo.jar -mongo "mongodb+srv://<USERNAME>:<PASSWORD>@demo.lkyil.mongodb.net/?retryWrites=true&w=majority" -objectname "com.mongodb:name=*,type=MongoDBKafkaConnector"
+java -jar jmx2mongo.jar -mongo "mongodb+srv://<USERNAME>:<PASSWORD>@demo.lkyil.mongodb.net/?retryWrites=true&w=majority" -objectname "com.mongodb.kafka.connect:type=sink-task-metrics,task=*"
 ```
 
 ## Contribute
 
-This project was primarily tested using the JMX MBeans exposed for the MongoDB Connector for Apache Kafka.  Chances are there may be bugs with other MBeans if you try other ObjectNames.  I don't claim to be a Java developer, I don't even play one on TV.  I appreciate any PRs to make this code more robust/usable with this JMX to MongoDB scenario.
-
-Thanks,
-Rob
+This project was primarily tested using the JMX MBeans exposed for the MongoDB Connector for Apache Kafka.  Chances are there may be issues with other MBeans if you try other ObjectNames.  If so please LMK.
